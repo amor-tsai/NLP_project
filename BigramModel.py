@@ -1,6 +1,8 @@
 #Programming Homework 1: (Language Model) 
-import NLTK
+import nltk
 import numpy as np
+from nltk.corpus import PlaintextCorpusReader
+from nltk.tokenize import sent_tokenize, word_tokenize
 
 class BigramModel:
 
@@ -17,7 +19,13 @@ class BigramModel:
 # singlesen: If true, each document will be viewed as a single sentence. Otherwise, the program should segment each documents into sentences and calculate bigrams accordingly.
 #  (i.e. the end of the first sentence and the beginning of the second sentence is not treated as a bigram).
     def __init__(self, name: str, dirName: str = ".", ext: str = "*", toload: bool = False, smooth: int = 0, stopWordList: list = [], otherWordList: list = [], singlesen: bool = False):
-        print(1)
+        print("init works")
+        if smooth < 0 or smooth > 1:
+            smooth = 0
+
+        reader = PlaintextCorpusReader(dirName,ext)
+        print(reader.words())
+
 
     # Return the probability of the bigram (w1, w2). If either w1 or w2 is not in the corpus, it will return -1.
     # the user can pass “^” to denote “beginning of a sentence, and “$” as the end of sentence. You should also use these symbol to print the corresponding bigrams.
@@ -51,4 +59,8 @@ class BigramModel:
 
 
 
-        
+
+
+
+
+model = BigramModel("name","corpus/","*")
