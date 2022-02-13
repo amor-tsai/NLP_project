@@ -18,7 +18,7 @@ class BigramModel:
 # otherWordList: a list of words that will be grouped and treated as a single word for calculating bigrams probabilities.
 # singlesen: If true, each document will be viewed as a single sentence. Otherwise, the program should segment each documents into sentences and calculate bigrams accordingly.
 #  (i.e. the end of the first sentence and the beginning of the second sentence is not treated as a bigram).
-    def __init__(self, name: str, dirName: str = ".", ext: str = "*", toload: bool = False, smooth: int = 0, stopWordList: list = [], otherWordList: list = [], singlesen: bool = False):
+    def __init__(self, name: str, dirName: str = ".", ext: str = ".*", toload: bool = False, smooth: int = 0, stopWordList: list = [], otherWordList: list = [], singlesen: bool = False):
         print("init works")
         if smooth < 0 or smooth > 1:
             smooth = 0
@@ -59,8 +59,3 @@ class BigramModel:
 
 
 
-
-
-
-
-model = BigramModel("name","corpus/","*")
