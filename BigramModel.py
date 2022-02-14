@@ -51,6 +51,9 @@ class BigramModel:
                 # remove stop words and non-alphanumeric words after tokenization
                 if (len(stopWordList) > 0 and ch in stopWordList) or None == re.match(".*[\w]+.*",ch):
                     continue
+                # always substitute the word with the first one in otherWordList since they are the same word
+                if ch in otherWordList:
+                    ch = otherWordList[0]
                 corpus.append(ch)
             corpus.append("$")
  
@@ -102,7 +105,7 @@ class BigramModel:
             return self.bigrams[(w1,w2)][2]
         return -1
     
-    #Return all the bigrams with w1 as the first word. It should return a list, each item of the list is a tuple (word, prob). 
+    # Return all the bigrams with w1 as the first word. It should return a list, each item of the list is a tuple (word, prob). 
     # If sortMethod = 1, the tuples are sorted alphabetically, if sortMethod = 2, the tuples are returned in decreasing order of probability (ties are broken alphabetically). 
     # Otherwise the list need not be sorted in any order. If w1 does not exist it will return an empty list.
     # the user can pass “^” to denote “beginning of a sentence, and “$” as the end of sentence. You should also use these symbol to print the corresponding bigrams.
@@ -111,7 +114,9 @@ class BigramModel:
         if self.bigrams:
             for k in self.bigrams.keys():
                 if w1 == k[0]:
-                    res.append(self.bigrams[k])
+                    res.append(
+                        (self.bigrams[k][1],self.bigrams[k][2])
+                    )
         if res:
             if sortMethod == 1:
                 res = sorted(res,key=functools.cmp_to_key(self.alphabeticCompare))
@@ -126,13 +131,15 @@ class BigramModel:
         if self.bigrams:
             for k in self.bigrams.keys():
                 if w2 == k[1]:
-                    res.append(self.bigrams[k])
+                    res.append(
+                        (self.bigrams[k][0],self.bigrams[k][2])
+                    )
         if res:
             if sortMethod == 1:
                 res = sorted(res,key=functools.cmp_to_key(self.alphabeticCompare))
             elif sortMethod == 2:
                 res = sorted(res,key=functools.cmp_to_key(self.probabilityCompare))
-        return res 
+        return res
     
     # Return all the bigrams and their probabilities as a list. Each item in the list is a tuple (word1, word2, prob). 
     # sortMethod is as above, except when sortMethod = 1, the tuples are sorted alphabetically by the first word of the tuple 
@@ -142,9 +149,11 @@ class BigramModel:
         res = self.bigrams.values()
         if res:
             if sortMethod == 1:
-                res = sorted(res,key=functools.cmp_to_key(self.alphabeticCompare))
+                res = sorted(res,key=functools.cmp_to_key(self.alphabeticCompare(bit=0)))
             elif sortMethod == 2:
                 res = sorted(res,key=functools.cmp_to_key(self.probabilityCompare))
+            elif sortMethod == 3:
+                res = sorted(res,key=functools.cmp_to_key(self.alphabeticCompare(bit=1)))
         return res
     
     # Save the calculated probabilities in a file. The filename will be appended with the extension “.bgmodel”. 
@@ -155,23 +164,23 @@ class BigramModel:
             pickle.dump(self.bigrams,open(self.__moduleName + ".bgmodel",'wb'))
 
     # compare two items by their alphabetic order
-    def alphabeticCompare(self,item1,item2):
-        if item1[0] < item2[0]:
+    def alphabeticCompare(self,item1,item2,bit=0):
+        if item1[bit] < item2[bit]:
             return -1
-        elif item1[0] > item2[0]:
+        elif item1[bit] > item2[bit]:
             return 1
         else:
-            if item1[1] < item2[1]:
-                return -1
-            elif item1[1] > item2[1]:
-                return 1
             return 0
     
     # compare two items by their probability
     def probabilityCompare(self,item1,item2):
-        if item1[2] < item2[2]:
+        # there are two kinds of item1 and item2 here, tuple(word,prob) and tuple(word1,word2,prob)
+        key = 1
+        if not isinstance(item1[key],float):
+            key = 2
+        if item1[key] < item2[key]:
             return 1
-        elif item1[2] > item2[2]:
+        elif item1[key] > item2[key]:
             return -1
         else:
             return self.alphabeticCompare(item1,item2)
