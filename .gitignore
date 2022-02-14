@@ -2,3 +2,7 @@
 *.code-workspace
 __pycache__
 .env
+*.bgmodel
+*.vscode
+corpus/
+*.txt
