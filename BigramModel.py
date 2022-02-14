@@ -15,8 +15,6 @@ import pickle
 import functools
 
 class BigramModel:
-
-
 # name: name of the model. The name is used as the filename to store the model
 # dirName: the directory that store the corpus. If dname starts with a “/”, then dname is an absolute path. Otherwise the path is relative starting from the current directory.
 #  (Default is the current directory)
@@ -35,17 +33,14 @@ class BigramModel:
         if toload:
             fileName = self.__moduleName + ".bgmodel"
             if os.path.isfile(fileName):
+                # load the model from file
                 self.bigrams = pickle.load(open(fileName,'rb'))
-                # print(self.bigrams)
                 return
         
         if smooth < 0 or smooth > 1:
             smooth = 0
         
         sents = self.getSentences(dirName,ext,singlesen)
-        # number of sentence
-        numberOfSentence = len(sents)
-        print("numberOfSentence: ",numberOfSentence)
         corpus = []
         for sen in sents:
             corpus.append("^")
@@ -67,9 +62,8 @@ class BigramModel:
         freq_single = {}
         for k,v in freq_ui.items():
             freq_single[k[0]] = v
-        # print(freq_single)
-        self.bigrams = {}
         
+        self.bigrams = {}
         lengthOfTypesFromBigram = len(freq_bi.items())
         for k,v in freq_bi.items():
             # need to remove ($,^) from bigram
@@ -87,7 +81,7 @@ class BigramModel:
         for file in os.listdir(dirName):
             if ext != "*" and False == file.endswith(ext):
                 continue
-            # print(join(dirName,file))
+            # that means, each document should be treated as a sentence
             if singlesen:
                 # if len(stopWordList) > 0:
                 #     sen = [ch for ch in nltk.tokenize.word_tokenize(sen) if not ch in stopWordList]
@@ -121,9 +115,11 @@ class BigramModel:
                     )
         if res:
             if sortMethod == 1:
-                res = sorted(res,key=functools.cmp_to_key(self.alphabeticCompare))
+                # sorted by alphabet
+                res = sorted(res,key=lambda x:x[0])
             elif sortMethod == 2:
-                res = sorted(res,key=functools.cmp_to_key(self.probabilityCompare))
+                # sorted by decreasing order of probability
+                res = sorted(res,key=lambda x:(-x[1],x[0]))
         return res
     
     # Return all the bigrams with w2 as the second word. Otherwise the specification is the same as the getProbList() function above.
@@ -138,9 +134,11 @@ class BigramModel:
                     )
         if res:
             if sortMethod == 1:
-                res = sorted(res,key=functools.cmp_to_key(self.alphabeticCompare))
+                # sorted by alphabet
+                res = sorted(res,key=lambda x:x[0])
             elif sortMethod == 2:
-                res = sorted(res,key=functools.cmp_to_key(self.probabilityCompare))
+                # sorted by decreasing order of probability
+                res = sorted(res,key=lambda x:(-x[1],x[0]))
         return res
     
     # Return all the bigrams and their probabilities as a list. Each item in the list is a tuple (word1, word2, prob). 
@@ -151,11 +149,11 @@ class BigramModel:
         res = self.bigrams.values()
         if res:
             if sortMethod == 1:
-                res = sorted(res,key=functools.cmp_to_key(self.alphabeticCompare(bit=0)))
+                res = sorted(res,key=lambda x:(x[0],x[1]))
             elif sortMethod == 2:
-                res = sorted(res,key=functools.cmp_to_key(self.probabilityCompare))
+                res = sorted(res,key=lambda x:(-x[2],x[0]))
             elif sortMethod == 3:
-                res = sorted(res,key=functools.cmp_to_key(self.alphabeticCompare(bit=1)))
+                res = sorted(res,key=lambda x:(x[1],x[0]))
         return res
     
     # Save the calculated probabilities in a file. The filename will be appended with the extension “.bgmodel”. 
@@ -165,27 +163,6 @@ class BigramModel:
         if self.bigrams:
             pickle.dump(self.bigrams,open(self.__moduleName + ".bgmodel",'wb'))
 
-    # compare two items by their alphabetic order
-    def alphabeticCompare(self,item1,item2,bit=0):
-        if item1[bit] < item2[bit]:
-            return -1
-        elif item1[bit] > item2[bit]:
-            return 1
-        else:
-            return 0
-    
-    # compare two items by their probability
-    def probabilityCompare(self,item1,item2):
-        # there are two kinds of item1 and item2 here, tuple(word,prob) and tuple(word1,word2,prob)
-        key = 1
-        if not isinstance(item1[key],float):
-            key = 2
-        if item1[key] < item2[key]:
-            return 1
-        elif item1[key] > item2[key]:
-            return -1
-        else:
-            return self.alphabeticCompare(item1,item2)
         
 
 
