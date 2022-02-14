@@ -1,3 +1,5 @@
+# CS7322 NLP
+# author: Amor Tsai
 #Programming Homework 1: (Language Model) 
 import nltk
 import os
