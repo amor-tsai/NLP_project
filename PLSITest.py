@@ -28,7 +28,11 @@ print(
 )
 
 print(
-    model.getTopicWordVectorAll(3)
+    model.getTopicWordVectorAll(0)
+)
+
+print(
+    model.ExtendedPrint('b')
 )
 
 # model.save()

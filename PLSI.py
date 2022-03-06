@@ -226,9 +226,23 @@ class PLSI:
           Each line of the file should be formatted as <word> <probability of the word>
           The output should be sorted by decreasing order of probability
     '''
-    def ExtendedPrint(dnamSuffix= ""):
-        
-        return
+    def ExtendedPrint(self,dnamSuffix= ""):
+        # create subdirectory
+        path = os.path.join(".",self.__moduleName+dnamSuffix)
+        if not os.path.isdir(path):
+            os.mkdir(path)
+        # write each document-topic vector to file
+        res = self.getAllDocumentTopic()
+        with open(os.path.join(path,'document-topics'),"w") as f:
+            for i in range(len(res)):
+                f.write('%s %s\n' % (res[i][0],' '.join(map(str,res[i][1]))))
+            
+        # write each topic-word vector to file
+        res = self.getTopicWordVectorAll(0)
+        for i in range(len(res)):
+            with open(os.path.join(path,"topic_{}".format(i)),"w") as f:
+                for k,v in res[i].items():
+                    f.write('%s %s\n' % (k,v))
 
     '''
     Save the model into a single file named <model name>.plsi
