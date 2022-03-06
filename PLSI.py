@@ -1,6 +1,15 @@
-# CS7322 NLP
-# author: Amor Tsai
-#Programming Homework 2: (Topic Model) 
+'''
+CS7322 NLP
+author: Amor Tsai
+Programming Homework 2: (Topic Model)
+complete bonus1 and bonus2
+
+question: 
+1. what do you mean by optimal solution
+2. for the iterations, should I suppose after 5 iterations to re-calculate document-topic vector or I have to make sure it really does not change then I can re-calculate
+3. when using dirchlet, every word has the same probability no matters what frequency is the word
+
+'''
 from numpy import dtype
 import nltk
 import os
@@ -15,6 +24,7 @@ import re
 import pickle
 from nltk.stem.snowball import SnowballStemmer
 from collections import Counter
+import copy
 
 class PLSI:
 #  name: name of the model. The name is used as the filename to store the model
@@ -45,7 +55,7 @@ class PLSI:
                 self.dt,self.tw,self.topicCount,self.documentNum,self.documentNameList = self.__model
                 return
         
-        sents = self.getCorpus(dirName,ext,stopWordList,ignoreCase)
+        self.getCorpus(dirName,ext,stopWordList,ignoreCase)
 
         # initialize document-topic vector
         self.document_topic_vector()
@@ -61,36 +71,90 @@ class PLSI:
     Calculate document topic vector and topic word vector in iterations
     '''
     def calculateDTandTW(self):
+        '''
+        preResults defined here is by purpose to compare if there is a different result
+        '''
+        preResults = [self.dt,self.tw]
         for iteration in range(self.iterations):
-            # calculate the vectors to represent the probability of that word comes from topic 1...topicCount
-            tmp = [[Counter() for _ in range(self.topicCount)] for _ in range(self.documentNum)]
-            for documentId in range(self.documentNum):
-                for topicIndex in range(self.topicCount): #topicIndex
-                    for key in self.tw[topicIndex].keys():
-                        tmp[documentId][topicIndex][key] = self.tw[topicIndex][key] * self.dt[documentId][topicIndex]
-                
-                for topicIndex in range(self.topicCount):
-                    for key in tmp[documentId][topicIndex]:
-                        keySum = 0.0
-                        for j in range(self.topicCount):
-                            keySum += tmp[documentId][j][key]
-                        
-                        for j in range(self.topicCount):
-                            tmp[documentId][j][key] /= keySum
-            # re-calculate topic word vector
-            for topicIndex in range(self.topicCount):
-                for key in self.tw[topicIndex]:
-                    numerator = 0.0
-                    denominator = 0.0
-                    for documentId in range(self.documentNum):
-                        numerator += tmp[documentId][topicIndex][key]
-                        denominator += tmp[documentId][topicIndex].total()
-                    self.tw[topicIndex][key] = numerator/denominator
-            # re-calculate document topic vector
-            for documentId in range(self.documentNum):
-                tSum = sum([tmp[documentId][x].total() for x in range(self.topicCount)])
-                for topicIndex in range(self.topicCount):
-                    self.dt[documentId][topicIndex] = tmp[documentId][topicIndex].total()/tSum
+            dt = copy.deepcopy(self.dt)
+            tw = copy.deepcopy(self.tw)
+            # calculate the intermediate vector
+            tmp = self.calculate_intermediate_vector(self.topicCount,self.documentNum,dt,tw,self.corpus)
+            # calculate document-topic vector
+            newdt = self.calculate_document_topic_vector(tmp,self.topicCount,self.documentNum,dt)
+            # calculate topic-word vector
+            newtw = self.calculate_topic_word_vector(tmp,self.topicCount,self.documentNum,tw)
+
+            if iteration >= 5:
+                newdt2 = self.re_calculate_document_vector_bonus2(self.dt)
+                if not np.array_equal(newdt2,newdt):
+                    newdt = newdt2
+
+            # after k iteration, the result can't be optimized
+            # if np.array_equal(self.dt,preResults[0]):
+            #     print(
+            #         iteration
+            #     )
+            
+            # store the results in each iteration
+            # preResults = [newdt,newtw]
+            self.dt = newdt
+            self.tw = newtw
+            # print(self.dt)
+        
+    '''
+    based on bonus2, re-calculate document-topic vector
+    '''
+    def re_calculate_document_vector_bonus2(self,dt):
+        topicCount = len(dt[0])
+        for i in range(len(dt)):
+            for j in range(topicCount):
+                p = (1-dt[i][j])/2
+                dt[i][j] += p
+                for k in range(topicCount):
+                    if k != j:
+                        dt[i][k] -= p/(topicCount-1)
+        return dt
+    
+    '''
+    calculate topic-word vector by intermediate vector tmp
+    '''
+    def calculate_topic_word_vector(self,tmp,topicCount,documentNum,tw):
+        for topicIndex in range(topicCount):
+            for key in tw[topicIndex]:
+                numerator = 0.0
+                denominator = 0.0
+                for documentId in range(documentNum):
+                    numerator += tmp[documentId][topicIndex][key]
+                    denominator += tmp[documentId][topicIndex].total()
+                tw[topicIndex][key] = numerator/denominator
+        return tw
+
+    '''
+    calculate document-topic vector by intermediate vector tmp
+    '''
+    def calculate_document_topic_vector(self,tmp,topicCount,documentNum,dt):
+        for documentId in range(documentNum):
+            tSum = sum([tmp[documentId][x].total() for x in range(topicCount)])
+            for topicIndex in range(topicCount):
+                dt[documentId][topicIndex] = tmp[documentId][topicIndex].total()/tSum
+        return dt
+
+    '''
+    For each word in each document, store a vector (with dimensionality topicount) to represent the probability of that word comes from topic 1..topicCount.
+    '''
+    def calculate_intermediate_vector(self,topicCount,documentNum,dt,tw,corpus):
+        tmp = [[Counter() for _ in range(topicCount)] for _ in range(documentNum)]
+        for documentId in range(documentNum):
+            for topicIndex in range(topicCount): #topicIndex
+                for word in corpus[documentId]:
+                    tmp[documentId][topicIndex][word] = tw[topicIndex][word] * dt[documentId][topicIndex]
+
+            for word in corpus[documentId]:
+                keySum = sum([tmp[documentId][j][word] for j in range(topicCount)])
+                for j in range(topicCount):
+                    tmp[documentId][j][word] /= keySum
+        return tmp
 
 
     # initialize document topic vector
@@ -139,7 +203,7 @@ class PLSI:
     return a list incorporating sentences
     '''
     def getCorpus(self, dirName:str = ".", ext: str = "*", stopWordList: list = [],ignoreCase: bool = True):
-        corpus = []
+        self.corpus = []
         self.documentNameList = []
         self.tw = [Counter() for _ in range(self.topicCount)]
         for file in os.listdir(dirName):
@@ -149,7 +213,6 @@ class PLSI:
             self.documentNameList.append(file)            
             if ignoreCase:
                 word_tokens = word_tokenize(open(join(dirName,file),"r").read().lower())
-                print("word_tokens ",len(word_tokens))
             else:
                 word_tokens = word_tokenize(open(join(dirName,file),"r").read())
             arr = []
@@ -162,13 +225,13 @@ class PLSI:
                     ch = self.stemmer.stem(ch)
                 arr.append(ch)
             # add each document of word tokens
-            corpus.append(arr)
+            self.corpus.append(arr)
             for i,string in enumerate(arr):
                 # add word to each topic
                 self.tw[i%self.topicCount][string] += 1
         # total number of documents
         self.documentNum = len(self.documentNameList)
-        return corpus
+        # print(self.corpus)
 
     '''
     Return the document-topic vector for a certain document. If docNum is NOT one of the document number you assigned, then use docName to find the document with the name.

@@ -8,20 +8,20 @@ from gensim.corpora.dictionary import Dictionary
 
 # model = BigramModel("model1","corpus","tx",stopWordList=["the","a"],singlesen=False,smooth=0.2)
 model = PLSI(
-    "model1","corpus","tx",toload= False, 
+    "model1","corpus","txt",toload= False, 
     stopWordList=['the','a','is','are','to','was','as','from','and','can','been','on','an','of','by','also','or','such','which','for','with'], 
-    ignoreCase=True, stem="snowball", topicCount=3, iterations=20,
-    randomInit='random1'
+    ignoreCase=False, stem="snowball", topicCount=10, iterations=3,
+    randomInit='random'
     )
-# model.save()
+model.save()
 
 print(
     model.getDocumentTopic(1)
 )
 
-# print(
-#     model.getAllDocumentTopic()
-# )
+print(
+    model.getAllDocumentTopic()
+)
 
 print(
     model.getTopicWordVector(0,3)
