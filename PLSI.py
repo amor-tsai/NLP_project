@@ -2,12 +2,11 @@
 CS7322 NLP
 author: Amor Tsai
 Programming Homework 2: (Topic Model)
-complete bonus1 and bonus2
+Total completion: base + bonus1 and bonus2
 
-question: 
-1. what do you mean by optimal solution
-2. for the iterations, should I suppose after 5 iterations to re-calculate document-topic vector or I have to make sure it really does not change then I can re-calculate
-3. when using dirchlet, every word has the same probability no matters what frequency is the word
+NOTICE:
+It needs to be run in python3.10 because I use Counter.total(), which is a new feature in python3.10
+
 
 '''
 from numpy import dtype
@@ -52,9 +51,10 @@ class PLSI:
             if os.path.isfile(fileName):
                 # load the model from file
                 self.__model = pickle.load(open(fileName,'rb'))
-                self.dt,self.tw,self.topicCount,self.documentNum,self.documentNameList = self.__model
+                self.dt,self.tw,self.topicCount,self.documentNum,self.documentNameList,self.corpus = self.__model
                 return
         
+        # preprocessing the corpus
         self.getCorpus(dirName,ext,stopWordList,ignoreCase)
 
         # initialize document-topic vector
@@ -64,7 +64,7 @@ class PLSI:
         # calculate document topic vector and topic word vector in iterations
         self.calculateDTandTW()
         # save document topic vector and topic word vector in the model
-        self.__model = [self.dt,self.tw,self.topicCount,self.documentNum,self.documentNameList]
+        self.__model = [self.dt,self.tw,self.topicCount,self.documentNum,self.documentNameList,self.corpus]
         
 
     '''
@@ -85,17 +85,18 @@ class PLSI:
             # calculate topic-word vector
             newtw = self.calculate_topic_word_vector(tmp,self.topicCount,self.documentNum,tw)
 
-            if iteration >= 5:
-                newdt2 = self.re_calculate_document_vector_bonus2(self.dt)
-                if not np.array_equal(newdt2,newdt):
-                    newdt = newdt2
-
+            # for bonus 2, here assumes that local optimal is not improved after 5 iterations.
+            # if things go to another way, then this code should be applied
             # after k iteration, the result can't be optimized
             # if np.array_equal(self.dt,preResults[0]):
             #     print(
             #         iteration
             #     )
-            
+            if iteration >= 5:
+                newdt2 = self.re_calculate_document_vector_bonus2(self.dt)
+                if not np.array_equal(newdt2,newdt):
+                    newdt = newdt2
+
             # store the results in each iteration
             # preResults = [newdt,newtw]
             self.dt = newdt
@@ -106,6 +107,8 @@ class PLSI:
     based on bonus2, re-calculate document-topic vector
     '''
     def re_calculate_document_vector_bonus2(self,dt):
+        if dt.size == 0:
+            raise Exception("document topic vector can't be empty")
         topicCount = len(dt[0])
         for i in range(len(dt)):
             for j in range(topicCount):
