@@ -3,7 +3,7 @@ CS7322 NLP
 author: Amor Tsai
 Programming Homework 2: (Topic Model)
 Total completion: base case + bonus1 + bonus2 + bonus3
-For bonus3, please take a look at the .html file
+For bonus3, please take a look at the Program2 bonus3 report.html
 
 NOTICE:
 1. It needs to be run in python3.10 because I use Counter.total(), which is a new feature in python3.10
@@ -25,9 +25,11 @@ import numpy as np
 from nltk.tokenize import word_tokenize
 import re
 import pickle
+import nltk
 from nltk.stem.snowball import SnowballStemmer
 from collections import Counter
 import copy
+nltk.download('punkt',quiet=True)
 
 class PLSI:
 #  name: name of the model. The name is used as the filename to store the model
