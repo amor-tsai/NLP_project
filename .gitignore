@@ -4,6 +4,5 @@ __pycache__
 .env
 *.bgmodel
 *.vscode
-corpus/
 *.txt
 .ipynb_checkpoints/program2_bonus3_report-checkpoint.ipynb
