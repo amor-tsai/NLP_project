@@ -2,23 +2,27 @@
 CS7322 NLP
 author: Amor Tsai
 Programming Homework 2: (Topic Model)
-Total completion: base + bonus1 and bonus2
+Total completion: base case + bonus1 + bonus2 + bonus3
+For bonus3, please take a look at the .html file
 
 NOTICE:
-It needs to be run in python3.10 because I use Counter.total(), which is a new feature in python3.10
+1. It needs to be run in python3.10 because I use Counter.total(), which is a new feature in python3.10
+2. First iteration is used for initializing document-topic vector and topic-word vector. That is, if the input iteraions is 3, it runs only twice.
+3. I bet "dirchlet" should be "dirichlet", but I would like to follow up the document requirement and use "dirchlet"
+
+quote :
+    For each document q
+    For each topic t
+    Modify dq in the following way
+    For each topic t’ that is not t, set dq[t’] = dq[t’] /2
+    After that set dq[t] = 1 - ∑ dq[t’] (where t’ ≠ t)
 
 
 '''
-from numpy import dtype
-import nltk
 import os
-import string
-from os.path import isfile, join
+from os.path import join
 import numpy as np
-from nltk.corpus import PlaintextCorpusReader
-from nltk.tokenize import sent_tokenize, word_tokenize, wordpunct_tokenize, TweetTokenizer
-from nltk.util import ngrams
-from nltk.util import pad_sequence
+from nltk.tokenize import word_tokenize
 import re
 import pickle
 from nltk.stem.snowball import SnowballStemmer
@@ -35,12 +39,13 @@ class PLSI:
 #  stem: whether to use a Stemmer or not. For this project, if stem = “snowball”, then use the snowball stemmer in NLTK. Any other values are ignored.
 #  topicCount: number of topics of the model. Default is 10.
 #  Iterations: number of iterations that the algorithm will take. (See below)
-    def __init__(self, name: str = "default", dirName: str = ".", ext: str = "*", toload: bool = False, stopWordList: list = [], ignoreCase: bool = True, stem: str="", topicCount:int = 10, iterations:int=20, randomInit:str = ""):
+    def __init__(self, name: str = "default", dirName: str = ".", ext: str = "*", toload: bool = False, stopWordList: list = [], ignoreCase: bool = True, stem: str="", topicCount:int = 10, iterations:int=20, randomInit:str = "", bonus2:bool = True):
         self.__moduleName = name
         self.__moduleExt = ".plsi"
         self.topicCount = topicCount
         self.iterations = iterations
         self.randomInit = randomInit
+        self.bonus2_enable = bonus2 # bonus2 is enable by default
         if "snowball" == stem:
             self.stemmer = SnowballStemmer("english")
         else:
@@ -51,20 +56,15 @@ class PLSI:
             if os.path.isfile(fileName):
                 # load the model from file
                 self.__model = pickle.load(open(fileName,'rb'))
-                self.dt,self.tw,self.topicCount,self.documentNum,self.documentNameList,self.corpus = self.__model
+                self.dt,self.tw,self.topicCount,self.documentNum,self.documentNameList,self.corpus,self.document_words,self.wordsCount = self.__model
                 return
         
         # preprocessing the corpus
-        self.getCorpus(dirName,ext,stopWordList,ignoreCase)
-
-        # initialize document-topic vector
-        self.document_topic_vector()
-        # initialize topic-word vector
-        self.topic_word_vector()
+        self.preprocess_corpus(dirName,ext,stopWordList,ignoreCase)
         # calculate document topic vector and topic word vector in iterations
         self.calculateDTandTW()
         # save document topic vector and topic word vector in the model
-        self.__model = [self.dt,self.tw,self.topicCount,self.documentNum,self.documentNameList,self.corpus]
+        self.__model = [self.dt,self.tw,self.topicCount,self.documentNum,self.documentNameList,self.corpus,self.document_words,self.wordsCount]
         
 
     '''
@@ -74,167 +74,223 @@ class PLSI:
         '''
         preResults defined here is by purpose to compare if there is a different result
         '''
-        preResults = [self.dt,self.tw]
+        if 0 == self.iterations:
+            raise Exception("iterations could not be zero!")
+        # preResults = [self.dt,self.tw]
+        # iterations deduce one because initializing document-topic vector and topic-word vector is counted once.
         for iteration in range(self.iterations):
-            dt = copy.deepcopy(self.dt)
-            tw = copy.deepcopy(self.tw)
+            # initialize document-topic vector and topic-word vector at the first step
+            if 0 == iteration:
+                # initialize document-topic vector
+                self.dt = self.document_topic_vector()
+                # initialize topic-word vector
+                self.tw = self.topic_word_vector()
+                # use document-topic vector and topic-word vector to calculate log sum probabilities
+                best_pros = self.document_probability(self.dt,self.tw,self.document_words,self.documentNum,self.corpus)
+                continue
+
+            dt = self.dt
+            tw = self.tw
+ 
             # calculate the intermediate vector
-            tmp = self.calculate_intermediate_vector(self.topicCount,self.documentNum,dt,tw,self.corpus)
+            vectors,document_wordsIndex = self.calculate_intermediate_vector(self.topicCount,self.documentNum,self.wordsCount,self.document_words,self.corpus,dt,tw)
             # calculate document-topic vector
-            newdt = self.calculate_document_topic_vector(tmp,self.topicCount,self.documentNum,dt)
+            newdt = self.calculate_document_topic_vector(vectors,self.documentNum,dt)
             # calculate topic-word vector
-            newtw = self.calculate_topic_word_vector(tmp,self.topicCount,self.documentNum,tw)
+            newtw = self.calculate_topic_word_vector(vectors,document_wordsIndex,self.topicCount,self.documentNum,self.wordsCount,tw)
+
+            # evaluate the model and store the best probability, best dt and tw
+            tmp_pros = self.document_probability(newdt,newtw,self.document_words,self.documentNum,self.corpus)
 
             # for bonus 2, here assumes that local optimal is not improved after 5 iterations.
-            # if things go to another way, then this code should be applied
-            # after k iteration, the result can't be optimized
-            # if np.array_equal(self.dt,preResults[0]):
-            #     print(
-            #         iteration
-            #     )
-            if iteration >= 5:
-                newdt2 = self.re_calculate_document_vector_bonus2(self.dt)
-                if not np.array_equal(newdt2,newdt):
-                    newdt = newdt2
+            if iteration >= 5 and self.bonus2_enable:
+                # it's weird here if don't use copy, the value of newdt will change
+                newdt2 = self.re_calculate_document_vector_bonus2(newdt)
+                tmp_pros2 = self.document_probability(newdt2,newtw,self.document_words,self.documentNum,self.corpus)
+                # if better solution generates, then applies this newdt2 and newtw
+                if tmp_pros2 > tmp_pros and tmp_pros2 > best_pros:
+                    print('{} good result issues'.format(iteration))
+                    best_pros = tmp_pros2
+                    self.dt = newdt2
+                    self.tw = newtw
+                # else:
+                    # print('{} not good result'.format(iteration))
+            else:
+                if tmp_pros > best_pros:
+                    best_pros = tmp_pros
+                    self.dt = newdt
+                    self.tw = newtw
+            
 
-            # store the results in each iteration
-            # preResults = [newdt,newtw]
-            self.dt = newdt
-            self.tw = newtw
-            # print(self.dt)
-        
+    '''
+    calculate the averge sum of log probability in all documents
+    '''
+    def document_probability(self,dt,tw,document_words,documentNum,corpus):
+        prosSum = [0] * documentNum
+        for documentIndex in range(documentNum):
+            for ch in document_words[documentIndex]:
+                wordIndex = corpus.index(ch)
+                prosSum[documentIndex] += np.log10(np.dot(tw[:,wordIndex],dt[documentIndex]))
+        return np.round(np.mean(prosSum),4)
+
     '''
     based on bonus2, re-calculate document-topic vector
     '''
     def re_calculate_document_vector_bonus2(self,dt):
-        if dt.size == 0:
-            raise Exception("document topic vector can't be empty")
-        topicCount = len(dt[0])
-        for i in range(len(dt)):
+        tmp_dt = copy.deepcopy(dt)
+        topicCount = len(tmp_dt[0])
+        for i in range(len(tmp_dt)):
             for j in range(topicCount):
-                p = (1-dt[i][j])/2
-                dt[i][j] += p
+                '''
+                For each topic t' that is not t, set dq[t'] = dq[t'] /2
+                After that set dq[t] = 1 - ∑ dq[t'] (where t' ≠ t)
+                '''
+                tmpSum = 0
                 for k in range(topicCount):
-                    if k != j:
-                        dt[i][k] -= p/(topicCount-1)
-        return dt
+                    if j != k:
+                        tmp_dt[i][k] /= 2
+                        tmpSum += tmp_dt[i][k]
+                tmp_dt[i][j] = 1 - tmpSum
+        tmp_dt = np.round(tmp_dt,4)
+        return tmp_dt
     
     '''
-    calculate topic-word vector by intermediate vector tmp
+    calculate topic-word vector by intermediate vectors
     '''
-    def calculate_topic_word_vector(self,tmp,topicCount,documentNum,tw):
+    def calculate_topic_word_vector(self,vectors,document_wordsIndex,topicCount,documentNum,wordsCount,tw):
         for topicIndex in range(topicCount):
-            for key in tw[topicIndex]:
-                numerator = 0.0
-                denominator = 0.0
-                for documentId in range(documentNum):
-                    numerator += tmp[documentId][topicIndex][key]
-                    denominator += tmp[documentId][topicIndex].total()
-                tw[topicIndex][key] = numerator/denominator
+            for wordIndex in range(wordsCount):
+                numerator = 0
+                denominator = 0
+                for documentIndex in range(documentNum):
+                    numerator += vectors[documentIndex][topicIndex][document_wordsIndex[documentIndex][wordIndex]].sum()
+                    denominator += vectors[documentIndex][topicIndex].sum()
+                tw[topicIndex][wordIndex] = numerator/denominator
+        tw = np.round(tw,4)
         return tw
 
     '''
     calculate document-topic vector by intermediate vector tmp
     '''
-    def calculate_document_topic_vector(self,tmp,topicCount,documentNum,dt):
+    def calculate_document_topic_vector(self,vectors,documentNum,dt):
         for documentId in range(documentNum):
-            tSum = sum([tmp[documentId][x].total() for x in range(topicCount)])
-            for topicIndex in range(topicCount):
-                dt[documentId][topicIndex] = tmp[documentId][topicIndex].total()/tSum
+            dt[documentId] = np.sum(vectors[documentId],axis=1)/np.sum(vectors[documentId])
+        dt = np.round(dt,4)
         return dt
 
     '''
     For each word in each document, store a vector (with dimensionality topicount) to represent the probability of that word comes from topic 1..topicCount.
     '''
-    def calculate_intermediate_vector(self,topicCount,documentNum,dt,tw,corpus):
-        tmp = [[Counter() for _ in range(topicCount)] for _ in range(documentNum)]
+    def calculate_intermediate_vector(self,topicCount,documentNum,wordsCount,document_words,corpus,dt,tw):
+        vectors = [[] for _ in range(documentNum)]
+        document_wordsIndex = [[] for _ in range(documentNum)]
         for documentId in range(documentNum):
-            for topicIndex in range(topicCount): #topicIndex
-                for word in corpus[documentId]:
-                    tmp[documentId][topicIndex][word] = tw[topicIndex][word] * dt[documentId][topicIndex]
+            tt = np.array([],dtype=float).reshape(topicCount,0)
+            tmp_wordsIndex = [[] for _ in range(wordsCount)]
+            for i,ch in enumerate(document_words[documentId]):
+                wordIndex = corpus.index(ch)
+                tmp = (tw[:,wordIndex]*dt[documentId])/np.dot(tw[:,wordIndex],dt[documentId])
+                tt = np.column_stack([tt,tmp.T])
+                tmp_wordsIndex[wordIndex].append(i)
+            
+            document_wordsIndex[documentId] = tmp_wordsIndex
+            vectors[documentId] = np.round(tt,4)
+        return vectors,document_wordsIndex
 
-            for word in corpus[documentId]:
-                keySum = sum([tmp[documentId][j][word] for j in range(topicCount)])
-                for j in range(topicCount):
-                    tmp[documentId][j][word] /= keySum
-        return tmp
-
-
-    # initialize document topic vector
+    '''
+    initialize document topic vector
+    '''
     def document_topic_vector(self):
         if self.randomInit == "random":
             # Divide the elements of each row by their row-summations
             v = np.random.random((self.documentNum,self.topicCount))
-            self.dt = v/v.sum(axis=1,keepdims=1)
+            dt = v/v.sum(axis=1,keepdims=1)
         elif self.randomInit == "dirchlet":
             '''
             If the value of this variable is set to “dirchlet”, then each document-topic vector is generated from the Dirichlet random function, 
             with alpha = 0.2 for each dimension. 
             '''
-            self.dt = np.random.dirichlet(alpha=[0.2]*self.topicCount,size=self.documentNum)
+            dt = np.random.dirichlet(alpha=[0.2]*self.topicCount,size=self.documentNum)
         else:
-            self.dt = np.ones((self.documentNum,self.topicCount),dtype=float)/self.topicCount
+            dt = np.zeros((self.documentNum,self.topicCount),dtype=float)
+            for i,_ in enumerate(self.document_words):
+                for j,_ in enumerate(self.document_words[i]):
+                    dt[i][(i+j)%self.topicCount] += 1
+                dt[i] /= sum(dt[i])
+        dt = np.round(dt,4)
+        return dt
 
     '''
-    generate topic word vector 
+    initialize topic word vector 
     '''    
-    def topic_word_vector(self): 
+    def topic_word_vector(self):
+        # self.tw = [[] for _ in range(self.topicCount)]
+        tw = np.zeros((self.topicCount,self.wordsCount),dtype=float)
+        topic_word = [Counter() for _ in range(self.topicCount)]
+        for i,_ in enumerate(self.document_words):
+            for j,ch in enumerate(self.document_words[i]):
+                topic_word[(i+j)%self.topicCount][ch] += 1
+        # length of words
+        length = len(self.corpus)
+
         if self.randomInit == "random":
-            for i in range(len(self.tw)):
-                total = len(self.tw[i])
-                v = np.random.random(total)
-                pro_list = v/v.sum(axis=0,keepdims=1)
-                for j,key in enumerate(self.tw[i].keys()):
-                    self.tw[i][key] = pro_list[j]
+            for i in range(len(tw)):
+                v = np.random.random(length)
+                tw[i] = v/v.sum(axis=0,keepdims=1)
             
         elif self.randomInit == "dirchlet":
             '''
             For each topic-word vector, it should be initialized such that every word has the same probability.
             '''
-            for i in range(len(self.tw)):
-                for key in self.tw[i].keys():
-                    self.tw[i][key] = 1 / self.tw[i].total()
+            for i in range(len(tw)):
+                tw[i] = np.ones((length,),dtype=float)/length
         else:
-            for i in range(len(self.tw)):
-                total = self.tw[i].total()
-                for key in self.tw[i].keys():
-                    self.tw[i][key] = self.tw[i][key] / total
-
+            '''
+            base case
+            '''
+            for i,words in enumerate(topic_word):
+                tmpSum = words.total()
+                for j in range(self.wordsCount):
+                    tw[i][j] = topic_word[i][self.corpus[j]]/tmpSum
+        tw = np.round(tw,4)
+        return tw
         
     '''
-    self.documentNameList has document name and document id(index)
-    return a list incorporating sentences
+    pre-process the corpus
     '''
-    def getCorpus(self, dirName:str = ".", ext: str = "*", stopWordList: list = [],ignoreCase: bool = True):
-        self.corpus = []
+    def preprocess_corpus(self, dirName:str = ".", ext: str = "*", stopWordList: list = [],ignoreCase: bool = True):
+        self.document_words = []
         self.documentNameList = []
-        self.tw = [Counter() for _ in range(self.topicCount)]
-        for file in os.listdir(dirName):
+        self.corpus = []# distinctive words combined into a corpus
+        for _,file in  enumerate(os.listdir(dirName)):
             if ext != "*" and False == file.endswith(ext):
                 continue
             # add document name in list, the index is the document id
-            self.documentNameList.append(file)            
-            if ignoreCase:
-                word_tokens = word_tokenize(open(join(dirName,file),"r").read().lower())
-            else:
-                word_tokens = word_tokenize(open(join(dirName,file),"r").read())
+            self.documentNameList.append(file)           
+            word_tokens = word_tokenize(open(join(dirName,file),"r").read())
             arr = []
             for ch in word_tokens:
                 #remove stop words and non-alphanumeric words
                 if (len(stopWordList) > 0 and ch in stopWordList) or None == re.match(".*[\w]+.*",ch):
                     continue
+                # transform words into lower case
+                if ignoreCase:
+                    ch = ch.lower()
+                # use stemmer to stem
                 if None != self.stemmer:
-                    # use stemmer to stem
                     ch = self.stemmer.stem(ch)
                 arr.append(ch)
+                if ch not in self.corpus:
+                    self.corpus.append(ch)
             # add each document of word tokens
-            self.corpus.append(arr)
-            for i,string in enumerate(arr):
-                # add word to each topic
-                self.tw[i%self.topicCount][string] += 1
+            self.document_words.append(arr)
+
         # total number of documents
         self.documentNum = len(self.documentNameList)
-        # print(self.corpus)
+        # total number of words
+        self.wordsCount = len(self.corpus)
+
+
 
     '''
     Return the document-topic vector for a certain document. If docNum is NOT one of the document number you assigned, then use docName to find the document with the name.
@@ -265,9 +321,12 @@ class PLSI:
     3. The return should be a dictionary, where each entry is a word and its probabiltiies.
     '''
     def getTopicWordVector(self,topicNum, topCount = 10):
-        res = sorted(self.tw[topicNum].items(), key=lambda x:x[1],reverse=True)
+        res = []
+        for word,proba in zip(self.corpus,self.tw[topicNum]):
+            res.append((word,proba))
+        res = sorted(res,key=lambda item: item[1],reverse=True)
         if topCount > 0:
-            res = res[0:topCount]
+            res = res[:topCount]
         return dict(res)
 
     '''
@@ -288,7 +347,7 @@ class PLSI:
           Then print one space character
           Then each dimension of the topic-document vector is printed (in order of topic 1, topic 2 etc.) There should be one space between each number.
     3. Each topic-word vector should be printed in a separate file named “topic_”<topic number>
-          One line for each word’s probability
+          One line for each word's probability
           Each line of the file should be formatted as <word> <probability of the word>
           The output should be sorted by decreasing order of probability
     '''

@@ -6,3 +6,4 @@ __pycache__
 *.vscode
 corpus/
 *.txt
+.ipynb_checkpoints/program2_bonus3_report-checkpoint.ipynb
