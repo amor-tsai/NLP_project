@@ -6,14 +6,28 @@ import string
 import numpy as np
 from gensim.corpora.dictionary import Dictionary
 
+params = {
+    'name' : "model_base",
+    'dirName' : "corpus",
+    'ext' : "tt",
+    'toload' : False, 
+    'stopWordList' : ['a','the'], 
+    'ignoreCase' : True, 
+    'stem' : "snowball", 
+    'topicCount' : 3, 
+    'iterations' : 10,
+    'randomInit' : '',
+    'bonus2' : False
+}
 
-
-model = PLSI(
-    "model1","corpus","txt",toload= False, 
-    stopWordList=['a','the'], 
-    ignoreCase=True, stem="snowball", topicCount=3, iterations=10,
-    randomInit='random1'
+model = PLSI(**params)
+print(
+    model.document_probability(
+        model.dt,model.tw,model.document_words,model.documentNum,model.corpus
+    )
 )
+
+
 # model = PLSI(
 #     dirName='corpus'
 # )
@@ -83,86 +97,4 @@ model = PLSI(
 
 
 
-model_base = PLSI(
-    "model_base","corpus","txt",toload= False, 
-    stopWordList=['a','the'], 
-    ignoreCase=True, stem="snowball", topicCount=3, iterations=10,
-    randomInit='random1',
-    bonus2=False
-)
 
-model_random = PLSI(
-    "model_base","corpus","txt",toload= False, 
-    stopWordList=['a','the'], 
-    ignoreCase=True, stem="snowball", topicCount=3, iterations=10,
-    randomInit='random',
-    bonus2=False
-)
-
-model_dirchlet = PLSI(
-    "model_base","corpus","txt",toload= False, 
-    stopWordList=['a','the'], 
-    ignoreCase=True, stem="snowball", topicCount=3, iterations=10,
-    randomInit='dirchlet',
-    bonus2=False
-)
-
-print(
-    model_base.document_probability(model_base.dt,model_base.tw,model_base.document_words,model_base.documentNum,model_base.corpus)
-)
-print(
-    model_random.document_probability(model_random.dt,model_random.tw,model_random.document_words,model_random.documentNum,model_random.corpus)
-)
-print(
-    model_dirchlet.document_probability(model_dirchlet.dt,model_dirchlet.tw,model_dirchlet.document_words,model_dirchlet.documentNum,model_dirchlet.corpus)
-)
-
-
-model_base2 = PLSI(
-    "model_base","corpus","txt",toload= False, 
-    stopWordList=['a','the'], 
-    ignoreCase=True, stem="snowball", topicCount=3, iterations=10,
-    randomInit='random1',
-    bonus2=True
-)
-
-model_random2 = PLSI(
-    "model_base","corpus","txt",toload= False, 
-    stopWordList=['a','the'], 
-    ignoreCase=True, stem="snowball", topicCount=3, iterations=10,
-    randomInit='random',
-    bonus2=True
-)
-
-model_dirchlet2 = PLSI(
-    "model_base","corpus","txt",toload= False, 
-    stopWordList=['a','the'], 
-    ignoreCase=True, stem="snowball", topicCount=3, iterations=10,
-    randomInit='dirchlet',
-    bonus2=True
-)
-
-print(
-    model_base2.document_probability(
-        model_base2.dt,
-        model_base2.tw,
-        model_base2.document_words,
-        model_base2.documentNum,
-        model_base2.corpus)
-)
-print(
-    model_random2.document_probability(
-        model_random2.dt,
-        model_random2.tw,
-        model_random2.document_words,
-        model_random2.documentNum,
-        model_random2.corpus)
-)
-print(
-    model_dirchlet2.document_probability(
-        model_dirchlet2.dt,
-        model_dirchlet2.tw,
-        model_dirchlet2.document_words,
-        model_dirchlet2.documentNum,
-        model_dirchlet2.corpus)
-)

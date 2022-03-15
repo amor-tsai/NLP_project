@@ -134,6 +134,26 @@ class PLSI:
                 wordIndex = corpus.index(ch)
                 prosSum[documentIndex] += np.log10(np.dot(tw[:,wordIndex],dt[documentIndex]))
         return np.round(np.mean(prosSum),4)
+    
+    '''
+    get performance score of single document
+    '''
+    def single_document_evaluation(self,documentIndex,documentName):
+        if documentIndex < 0 or documentIndex > len(self.documentNameList):
+            documentIndex = self.documentNameList.index(documentName)
+        prosSum = 0
+        for ch in self.document_words[documentIndex]:
+            wordIndex = self.corpus.index(ch)
+            prosSum += np.log10(np.dot(self.tw[:,wordIndex],self.dt[documentIndex]))
+        return np.round(prosSum,4)
+    
+    '''
+    get performance score of multiple documents
+    '''
+    def documents_evaluation(self):
+        return self.document_probability(
+            self.dt,self.tw,self.document_words,self.documentNum,self.corpus
+        )
 
     '''
     based on bonus2, re-calculate document-topic vector
