@@ -5,27 +5,31 @@ import re
 import string
 import numpy as np
 from gensim.corpora.dictionary import Dictionary
+import os
+import tracemalloc
+import linecache
+import time
 
 params = {
     'name' : "model_base",
     'dirName' : "corpus",
-    'ext' : "tt",
+    'ext' : "txt",
     'toload' : False, 
     'stopWordList' : ['a','the'], 
     'ignoreCase' : True, 
     'stem' : "snowball", 
-    'topicCount' : 3, 
-    'iterations' : 10,
+    'topicCount' : 8, 
+    'iterations' : 1,
     'randomInit' : '',
     'bonus2' : False
 }
 
-model = PLSI(**params)
-print(
-    model.document_probability(
-        model.dt,model.tw,model.document_words,model.documentNum,model.corpus
-    )
-)
+# model = PLSI(**params)
+# print(
+#     model.document_probability(
+#         model.dt,model.tw,model.document_words,model.documentNum,model.corpus
+#     )
+# )
 
 
 # model = PLSI(
@@ -94,6 +98,23 @@ print(
 # indices = [0,1] 
 # print(a[indices].sum())
 
+
+
+# A = np.array(
+#     [[1,1,1],
+#     [2,2,2],
+#     [5,5,5]
+#     ]
+# )
+
+# B = np.array(
+#     [[0,1,1],
+#     [1,1,1],
+#     [1,2,1]]
+# )
+
+# C = np.einsum('aj,bk->aj',A,B)
+# print(C)
 
 
 

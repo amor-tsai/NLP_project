@@ -107,8 +107,8 @@ class PLSI:
             # for bonus 2, here assumes that local optimal is not improved after 5 iterations.
             if iteration >= 5 and self.bonus2_enable:
                 # it's weird here if don't use copy, the value of newdt will change
-                newdt2 = self.re_calculate_document_vector_bonus2(newdt)
-                tmp_pros2 = self.document_probability(newdt2,newtw,self.document_words,self.documentNum,self.corpus)
+                newdt2 = self.re_calculate_document_vector_bonus2(np.copy(newdt))
+                tmp_pros2 = self.document_probability(np.copy(newdt2),np.copy(newtw),self.document_words,self.documentNum,self.corpus)
                 # if better solution generates, then applies this newdt2 and newtw
                 if tmp_pros2 > tmp_pros and tmp_pros2 > best_pros:
                     print('{} good result issues'.format(iteration))
@@ -159,7 +159,7 @@ class PLSI:
     based on bonus2, re-calculate document-topic vector
     '''
     def re_calculate_document_vector_bonus2(self,dt):
-        tmp_dt = copy.deepcopy(dt)
+        tmp_dt = dt
         topicCount = len(tmp_dt[0])
         for i in range(len(tmp_dt)):
             for j in range(topicCount):
@@ -207,7 +207,7 @@ class PLSI:
         vectors = [[] for _ in range(documentNum)]
         document_wordsIndex = [[] for _ in range(documentNum)]
         for documentId in range(documentNum):
-            tt = np.array([],dtype=float).reshape(topicCount,0)
+            tt = np.array([],dtype=np.double).reshape(topicCount,0)
             tmp_wordsIndex = [[] for _ in range(wordsCount)]
             for i,ch in enumerate(document_words[documentId]):
                 wordIndex = corpus.index(ch)
@@ -225,16 +225,16 @@ class PLSI:
     def document_topic_vector(self):
         if self.randomInit == "random":
             # Divide the elements of each row by their row-summations
-            v = np.random.random((self.documentNum,self.topicCount))
+            v = np.random.random((self.documentNum,self.topicCount)).astype(np.double)
             dt = v/v.sum(axis=1,keepdims=1)
         elif self.randomInit == "dirchlet":
             '''
             If the value of this variable is set to “dirchlet”, then each document-topic vector is generated from the Dirichlet random function, 
             with alpha = 0.2 for each dimension. 
             '''
-            dt = np.random.dirichlet(alpha=[0.2]*self.topicCount,size=self.documentNum)
+            dt = np.random.dirichlet(alpha=[0.2]*self.topicCount,size=self.documentNum).astype(np.double)
         else:
-            dt = np.zeros((self.documentNum,self.topicCount),dtype=float)
+            dt = np.zeros((self.documentNum,self.topicCount),dtype=np.double)
             for i,_ in enumerate(self.document_words):
                 for j,_ in enumerate(self.document_words[i]):
                     dt[i][(i+j)%self.topicCount] += 1
@@ -247,7 +247,7 @@ class PLSI:
     '''    
     def topic_word_vector(self):
         # self.tw = [[] for _ in range(self.topicCount)]
-        tw = np.zeros((self.topicCount,self.wordsCount),dtype=float)
+        tw = np.zeros((self.topicCount,self.wordsCount),dtype=np.double)
         topic_word = [Counter() for _ in range(self.topicCount)]
         for i,_ in enumerate(self.document_words):
             for j,ch in enumerate(self.document_words[i]):
@@ -257,7 +257,7 @@ class PLSI:
 
         if self.randomInit == "random":
             for i in range(len(tw)):
-                v = np.random.random(length)
+                v = np.random.random(length).astype(np.double)
                 tw[i] = v/v.sum(axis=0,keepdims=1)
             
         elif self.randomInit == "dirchlet":
@@ -265,7 +265,7 @@ class PLSI:
             For each topic-word vector, it should be initialized such that every word has the same probability.
             '''
             for i in range(len(tw)):
-                tw[i] = np.ones((length,),dtype=float)/length
+                tw[i] = np.ones((length,),dtype=np.double)/length
         else:
             '''
             base case
@@ -311,8 +311,6 @@ class PLSI:
         self.documentNum = len(self.documentNameList)
         # total number of words
         self.wordsCount = len(self.corpus)
-
-
 
     '''
     Return the document-topic vector for a certain document. If docNum is NOT one of the document number you assigned, then use docName to find the document with the name.
