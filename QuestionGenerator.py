@@ -1,5 +1,7 @@
 '''
-use spacy
+Author Amor Tsai(Liangchao Cai)
+
+in order to run this program, the spacy(>=3.2), 'en_core_web_sm' from spacy(need to download), nltk(>=3.6), wordnet from nltk(need to download)
 python -m spacy download en_core_web_sm
 
 use nltk
@@ -9,6 +11,7 @@ use nltk wordnet
 import spacy
 import nltk
 from nltk.corpus import wordnet as wn
+
 # print(spacy.__version__)
 
 # nlp = spacy.load("en_core_web_sm")
@@ -27,6 +30,7 @@ class QuestionGenerator:
     def getInterrogativeExpressing(self,txt,chunk,entities):
         ent_labels = {'person':'Who','object':'What','date':'When','time':'When','money':'How much', 'org':'Who'}
         other = {'person':'Who','object':'What'}
+        personalPronouns = set(['i','me','he','she','him','her'])
         res = None
         # use spacy named entity recognization first
         if chunk.text in entities:
@@ -41,7 +45,7 @@ class QuestionGenerator:
                 res = (ent_labels[label],txt)
             else:
                 res = (ent_labels['object'],txt)
-        elif txt.lower() in ['me','he','she','him','her']:
+        elif txt.lower() in personalPronouns:
             res = (other['person'],txt)
         else:
             try:
@@ -80,13 +84,18 @@ class QuestionGenerator:
             if token.dep_ == 'nsubj' and t == token:
                 seq.append(w)
                 continue
+            elif root.tag_ == 'VBG' and t.tag_ == 'VBZ' and token.dep_ != 'nsubj':
+                is_lemma = False
+                seq.insert(0,t.text)
+                continue
             elif (token.dep_ == 'dobj' or token.dep_ == 'pobj' or token.dep_ == 'npadvmod') and t == token:
                 if root.tag_ == 'VBD':
                     seq.insert(0,'did')
                 elif root.tag_ == 'VBZ':
                     seq.insert(0,'does')
-                elif root.tag_ == '':
+                elif root.tag_ == 'VBP':
                     seq.insert(0,'do')
+                        
                 seq.insert(0,w)
                 continue
             
@@ -94,11 +103,14 @@ class QuestionGenerator:
             if is_lemma and t == root:
                 seq.append(t.lemma_)
             else:
-                seq.append(t.text)
+                if t.dep_ == 'nsubj' and token.dep_ != 'nsubj' and t.tag_ == 'PRP':
+                    seq.append(t.text.lower())
+                else:
+                    seq.append(t.text)
         return seq
         
         
-    
+    # get sentences generated
     def getQuestions(self,sent:str):
         doc = self.nlp(sent)
 
@@ -141,7 +153,7 @@ class QuestionGenerator:
 #         print('entities ',entities)
 #         print('asks ',asks)
         
+        questions = []
         for w,word in asks:
-            print('Question: ',' '.join(self.rebuildStructure(root,tokens[word],w)))
-
-    
+            questions.append(' '.join(self.rebuildStructure(root,tokens[word],w)))
+        return questions
