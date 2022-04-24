@@ -23,12 +23,7 @@ class LDA:
         if toload:
             self.model = LdaModel.load(self.name)
         else:
-            dataset = api.load("text8")
-            data = [d for d in dataset]
-            print(data)
-            return
-
-
+            
             common_dictionary = Dictionary(readTextFiles(ext='tt'))
             common_corpus = [common_dictionary.doc2bow(text) for text in common_texts]
             self.model = LdaModel(common_corpus,id2word=common_dictionary, num_topics=num_topics)
