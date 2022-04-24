@@ -18,6 +18,7 @@ def run(inputSent=None,inputFilename=None,outputFilename=None):
         with open(outputFilename,'w') as f:
             for q in questions:
                 f.writelines(q)
+                f.write('\n')
     else:
         for q in questions:
             print(q)
